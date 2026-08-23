@@ -279,10 +279,35 @@ tailwind.config = {
         </span>
       </div>
 
+      
       <!-- حاوية التنبيهات -->
       <div id="alertsContainer" class="p-5 space-y-4 flex-1 overflow-y-auto max-h-[400px] thin-scroll">
          <!-- سيتم إدراج التنبيهات هنا عبر الجافاسكربت -->
          <p class="text-center text-slate-400 text-sm py-10">جارٍ تحميل التنبيهات...</p>
+      </div>
+
+
+      <!-- حاوية المقترحات -->
+    <aside id="improvmentPanel" class="reveal bg-white rounded-2xl border border-slate-100 shadow-card flex flex-col transition-all" style="animation-delay:.38s">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-brand-950 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center ring-1 ring-emerald-100">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+            </span>
+            المقترحات
+          </h3>
+        </div>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 px-2.5 py-1 text-[11px] font-extrabold shrink-0">
+          <span class="relative flex h-2 w-2"><span class="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative rounded-full h-2 w-2 bg-emerald-500"></span></span>
+          <span id="improvmentCountBadge">0 مقترحات</span>
+        </span>
+      </div>
+
+      <!-- حاوية المقترحات -->
+      <div id="improvmentContainer" class="p-5 space-y-4 flex-1 overflow-y-auto max-h-[400px] thin-scroll">
+         <!-- سيتم إدراج المقترحات هنا عبر الجافاسكربت -->
+         <p class="text-center text-slate-400 text-sm py-10">جارٍ تحميل المقترحات...</p>
       </div>
     </aside>
   </section>
@@ -347,6 +372,7 @@ function parseSmartCSV(str) {
     const data = {
         stats: {},
         alerts: [],
+        improvment: [],
         employees: []
     };
     
@@ -371,6 +397,14 @@ function parseSmartCSV(str) {
         } 
         else if (type === 'تنبيه') {
             data.alerts.push({
+                title: nameOrKey,
+                team: valueOrPercent,
+                priority: extraInfo,
+                date: dateStr
+            });
+        }
+        else if (type === 'مقترح') {
+            data.improvment.push({
                 title: nameOrKey,
                 team: valueOrPercent,
                 priority: extraInfo,
@@ -512,6 +546,49 @@ async function fetchSheetData() {
         document.getElementById('cardAlertsNum').textContent = alertsCount;
         document.getElementById('headerAlertsCount').textContent = alertsCount;
         document.getElementById('alertsCountBadge').textContent = alertsCount + ' نشطة';
+
+
+
+        /* ----- ج. بناء قسم المقترحات ----- */
+        let improvmentHTML = '';
+        sheetData.improvment.forEach(improvment => {
+            let badgeClass = 'bg-green-50 text-green-600 ring-green-100';
+            let icon = '🔥';
+            if (improvment.priority.includes('مطلوب')) {
+                badgeClass = 'bg-yellow-50 text-yellow-600 ring-yellow-100'; icon = '🔥';
+            } else if (improvment.priority.includes('مفيد')) {
+                badgeClass = 'bg-green-50 text-green-600 ring-green-100'; icon = '⚡';
+            } else {
+                badgeClass = 'bg-amber-50 text-amber-600 ring-amber-100'; icon = '⚠️';
+            }
+
+            improvmentHTML += `
+            <article class="rounded-xl border border-slate-200 p-4 hover:border-accent-300 hover:shadow-md transition-all bg-white">
+              <div class="flex items-center justify-between mb-2.5">
+                <span class="inline-flex items-center gap-1 rounded-full ${badgeClass} ring-1 px-2.5 py-1 text-[10px] font-extrabold">${icon} ${improvment.priority}</span>
+                <span class="text-[10px] text-slate-400 font-bold">${improvment.date}</span>
+              </div>
+              <h4 class="font-extrabold text-slate-800 leading-snug mb-2">${improvment.title}</h4>
+              <p class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-3">
+                مرفوع من: <span class="font-extrabold text-brand-800">${improvment.team}</span>
+              </p>
+              <div class="flex gap-2">
+                <button class="escalate-btn flex-1 rounded-lg bg-brand-800 text-white text-[11px] font-extrabold py-2 hover:bg-brand-900 transition shadow-sm">تصعيد للإدارة</button>
+              </div>
+            </article>`;
+        });
+
+        if(sheetData.improvment.length === 0){
+             improvmentHTML = `<p class="text-center text-emerald-500 font-bold text-sm py-10">✓ لا توجد مقترحات للتطوير حالياً</p>`;
+        }
+        document.getElementById('improvmentContainer').innerHTML = improvmentHTML;
+        
+        let improvmentCount = sheetData.improvment.length;
+        //document.getElementById('cardimprovmentNum').textContent= improvmentCount;
+        //document.getElementById('headerimprovmentCount').textContent = improvmentCount;
+        document.getElementById('improvmentCountBadge').textContent = improvmentCount + ' نشطة';
+
+
 
         setupEscalateButtons();
         updateTime();
