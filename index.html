@@ -125,6 +125,13 @@ tailwind.config = {
       <p class="text-sm text-slate-500 mt-1">آخر تحديث للبيانات: <span id="lastUpdate" class="font-bold text-brand-800">—</span></p>
     </div>
     <div class="flex items-center gap-2">
+      <select id="monthSelector" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer hover:border-brand-300 transition shadow-sm">
+        <option value="august">أغسطس 2026</option>
+        <option value="september">سبتمبر 2026</option>
+        <option value="october">أكتوبر 2026</option>
+        <option value="november">نوفمبر 2026</option>
+        <option value="december">ديسمبر 2026</option>
+      </select>
       <button id="refreshBtn" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-900 hover:border-brand-300 hover:shadow-sm transition">
         <svg id="refreshIcon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
         تحديث البيانات
@@ -136,6 +143,20 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- حاوية حالة "لا توجد بيانات/شهر مستقبلي" (تكون مخفية افتراضياً) -->
+  <div id="noDataState" class="hidden reveal flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-100 shadow-card text-center min-h-[500px]">
+    <div class="w-24 h-24 mb-6 rounded-full bg-slate-50 flex items-center justify-center ring-8 ring-slate-50/50">
+      <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Z" />
+      </svg>
+    </div>
+    <h3 class="text-2xl font-extrabold text-brand-950 mb-2">بيانات غير متوفرة بعد</h3>
+    <p class="text-slate-500 max-w-md mx-auto leading-relaxed">
+      إن تقرير الإدارة التنفيذية الخاص بهذا الشهر قيد الإعداد ولم يتم نشره بعد. يرجى العودة لاحقاً.
+    </p>
+  </div>
+
+  <div id="dashboardContent" class="space-y-6">
   <!-- ===================== KPI CARDS ===================== -->
   <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
@@ -311,6 +332,7 @@ tailwind.config = {
       </div>
     </aside>
   </section>
+  </div>
 
   <footer class="pt-2 pb-6 text-center text-[11px] text-slate-400 font-semibold">
     © 2026 شركة غزارة — لوحة الإدارة التنفيذية
@@ -329,8 +351,21 @@ tailwind.config = {
 // ==========================================
 // 1. ضع رابط الـ CSV الخاص بك هنا
 // ==========================================
-const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkdVuP5OgH9GQ9DZqHET1xAJaN5jPDpLBhd_v9hUAsrss7dbgolneuUA00vXFDJcSo-5rkKBrXu5s/pub?gid=525107273&single=true&output=csv';
+const baseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkdVuP5OgH9GQ9DZqHET1xAJaN5jPDpLBhd_v9hUAsrss7dbgolneuUA00vXFDJcSo-5rkKBrXu5s/pub?single=true&output=csv&gid=';
 // ==========================================
+
+const monthsData = {
+    'august': '525107273',       // رقم gid لصفحة أغسطس الحالية
+    'september': '877281814',     // ⚠️ استبدل هذا الرقم برقم gid الخاص بصفحة سبتمبر
+    'october': 'future',      
+    'november': 'future',        // 👈 هذا الشهر لم يأتِ بعد، ولا توجد له بيانات
+    'december': 'future'         // 👈 هذا الشهر لم يأتِ بعد
+};
+
+function getCurrentCsvUrl() {
+    const selectedMonth = document.getElementById('monthSelector').value;
+    return baseUrl + monthsData[selectedMonth];
+}
 
 let toastTimer;
 function showToast(msg){
@@ -391,24 +426,27 @@ function parseSmartCSV(str) {
         
         // العمود السادس الجديد (رابط الملف)
         let linkStr = cols[5] ? cols[5].trim() : '';
+        let escalatedAt = cols[6] ? cols[6].trim() : '';
 
         if (type === 'إحصائيات') {
             data.stats[nameOrKey] = valueOrPercent;
         } 
         else if (type === 'تنبيه') {
-            data.alerts.push({
-                title: nameOrKey,
-                team: valueOrPercent,
-                priority: extraInfo,
-                date: dateStr
-            });
-        }
+    data.alerts.push({
+        title: nameOrKey,
+        team: valueOrPercent,
+        priority: extraInfo,
+        date: dateStr,
+        escalatedAt: escalatedAt
+    });
+}
         else if (type === 'مقترح') {
             data.improvment.push({
                 title: nameOrKey,
                 team: valueOrPercent,
                 priority: extraInfo,
-                date: dateStr
+                date: dateStr,
+                escalatedAt: escalatedAt
             });
         }
         else if (type === 'موظف') {
@@ -432,13 +470,45 @@ function parseSmartCSV(str) {
 // 3. جلب البيانات وبناء الواجهة
 // ==========================================
 async function fetchSheetData() {
-    if(csvUrl === 'ضع_الرابط_هنا') {
-        document.getElementById('employeesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-bold text-sm">❌ يرجى استبدال "ضع_الرابط_هنا" برابط الـ CSV الخاص بك في الكود</td></tr>`;
+
+    const selectedMonth = document.getElementById('monthSelector').value;
+    const gidOrStatus = monthsData[selectedMonth];
+    
+    // عناصر الواجهة
+    const dashboardContent = document.getElementById('dashboardContent');
+    const noDataState = document.getElementById('noDataState');
+
+    // إذا كان الشهر مستقبلياً أو لم تُربط بياناته بعد
+    if (gidOrStatus === 'future') {
+        dashboardContent.classList.add('hidden'); // إخفاء لوحة التحكم
+        noDataState.classList.remove('hidden');   // إظهار رسالة "البيانات غير متوفرة"
+        
+        // تصفير القيم العلوية لكي لا تبقى معلقة
+        document.getElementById('lastUpdate').textContent = "—";
+        return; // الخروج من الدالة وعدم استدعاء بيانات من جوجل
+    }
+
+    // إذا كان هناك رقم GID حقيقي، نقوم ببناء الرابط
+    const currentCsvUrl = baseUrl + gidOrStatus;
+
+    // إذا لم يكن هناك أي ربط للشهر (تحوطاً للأخطاء)
+    if(!gidOrStatus) {
+        showToast('❌ الرابط غير معرف لهذا الشهر');
         return;
     }
 
+
     try {
-        const response = await fetch(csvUrl);
+        dashboardContent.classList.remove('hidden');
+        noDataState.classList.add('hidden');
+
+        const response = await fetch(currentCsvUrl);
+        
+        // إذا فشل الاتصال بجوجل (مثلاً بسبب خطأ في النشر أو الرابط)
+        if (!response.ok) {
+           throw new Error('فشل الوصول لملف البيانات');
+        }
+
         const csvText = await response.text();
         
         const sheetData = parseSmartCSV(csvText);
@@ -521,6 +591,16 @@ async function fetchSheetData() {
                 badgeClass = 'bg-amber-50 text-amber-600 ring-amber-100'; icon = '⚠️';
             }
 
+            // Check if Google Sheet already has an escalation timestamp
+            const isEscalated = alert.escalatedAt && alert.escalatedAt.length > 0;
+            const btnText = isEscalated ? '🔄 إعادة التصعيد (WhatsApp)' : 'تصعيد للإدارة';
+            const btnClass = isEscalated ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-800 hover:bg-brand-900';
+            const timeBadgeHTML = isEscalated 
+                ? `<div class="escalate-time text-[10px] text-emerald-700 font-bold mt-2 text-center bg-emerald-50 border border-emerald-200 py-1 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all">
+                    <span>✓ تم التصعيد:</span> <span class="font-mono dir-ltr">${alert.escalatedAt}</span>
+                  </div>`
+                : '';
+
             alertsHTML += `
             <article class="rounded-xl border border-slate-200 p-4 hover:border-accent-300 hover:shadow-md transition-all bg-white">
               <div class="flex items-center justify-between mb-2.5">
@@ -531,8 +611,14 @@ async function fetchSheetData() {
               <p class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-3">
                 مرفوع من: <span class="font-extrabold text-brand-800">${alert.team}</span>
               </p>
-              <div class="flex gap-2">
-                <button class="escalate-btn flex-1 rounded-lg bg-brand-800 text-white text-[11px] font-extrabold py-2 hover:bg-brand-900 transition shadow-sm">تصعيد للإدارة</button>
+              <div class="flex flex-col gap-2">
+                <button class="escalate-btn flex-1 rounded-lg ${btnClass} text-white text-[11px] font-extrabold py-2 transition shadow-sm"
+                        data-title="${alert.title}" 
+                        data-team="${alert.team}" 
+                        data-priority="${alert.priority}">
+                  ${btnText}
+                </button>
+                ${timeBadgeHTML}
               </div>
             </article>`;
         });
@@ -551,32 +637,48 @@ async function fetchSheetData() {
 
         /* ----- ج. بناء قسم المقترحات ----- */
         let improvmentHTML = '';
-        sheetData.improvment.forEach(improvment => {
-            let badgeClass = 'bg-green-50 text-green-600 ring-green-100';
-            let icon = '🔥';
-            if (improvment.priority.includes('مطلوب')) {
-                badgeClass = 'bg-yellow-50 text-yellow-600 ring-yellow-100'; icon = '🔥';
-            } else if (improvment.priority.includes('مفيد')) {
-                badgeClass = 'bg-green-50 text-green-600 ring-green-100'; icon = '⚡';
-            } else {
-                badgeClass = 'bg-amber-50 text-amber-600 ring-amber-100'; icon = '⚠️';
-            }
+          sheetData.improvment.forEach(improvment => {
+          let badgeClass = 'bg-red-50 text-red-600 ring-red-100';
+          let icon = '🔥';
+          if (improvment.priority.includes('عاجل')) {
+              badgeClass = 'bg-red-50 text-red-600 ring-red-100'; icon = '🔥';
+          } else if (improvment.priority.includes('مرتفع')) {
+              badgeClass = 'bg-accent-50 text-accent-700 ring-accent-100'; icon = '⚡';
+          } else {
+              badgeClass = 'bg-amber-50 text-amber-600 ring-amber-100'; icon = '⚠️';
+          }
 
-            improvmentHTML += `
-            <article class="rounded-xl border border-slate-200 p-4 hover:border-accent-300 hover:shadow-md transition-all bg-white">
-              <div class="flex items-center justify-between mb-2.5">
-                <span class="inline-flex items-center gap-1 rounded-full ${badgeClass} ring-1 px-2.5 py-1 text-[10px] font-extrabold">${icon} ${improvment.priority}</span>
-                <span class="text-[10px] text-slate-400 font-bold">${improvment.date}</span>
-              </div>
-              <h4 class="font-extrabold text-slate-800 leading-snug mb-2">${improvment.title}</h4>
-              <p class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-3">
-                مرفوع من: <span class="font-extrabold text-brand-800">${improvment.team}</span>
-              </p>
-              <div class="flex gap-2">
-                <button class="escalate-btn flex-1 rounded-lg bg-brand-800 text-white text-[11px] font-extrabold py-2 hover:bg-brand-900 transition shadow-sm">تصعيد للإدارة</button>
-              </div>
-            </article>`;
-        });
+          // Check if Google Sheet already has an escalation timestamp
+          const isEscalated = improvment.escalatedAt && improvment.escalatedAt.length > 0;
+          const btnText = isEscalated ? '🔄 إعادة التصعيد (WhatsApp)' : 'تصعيد للإدارة';
+          const btnClass = isEscalated ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-800 hover:bg-brand-900';
+          const timeBadgeHTML = isEscalated 
+              ? `<div class="escalate-time text-[10px] text-emerald-700 font-bold mt-2 text-center bg-emerald-50 border border-emerald-200 py-1 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all">
+                  <span>✓ تم التصعيد:</span> <span class="font-mono dir-ltr">${improvment.escalatedAt}</span>
+                </div>`
+              : '';
+
+          improvmentHTML += `
+          <article class="rounded-xl border border-slate-200 p-4 hover:border-accent-300 hover:shadow-md transition-all bg-white">
+            <div class="flex items-center justify-between mb-2.5">
+              <span class="inline-flex items-center gap-1 rounded-full ${badgeClass} ring-1 px-2.5 py-1 text-[10px] font-extrabold">${icon} ${improvment.priority}</span>
+              <span class="text-[10px] text-slate-400 font-bold">${improvment.date}</span>
+            </div>
+            <h4 class="font-extrabold text-slate-800 leading-snug mb-2">${improvment.title}</h4>
+            <p class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-3">
+              مرفوع من: <span class="font-extrabold text-brand-800">${improvment.team}</span>
+            </p>
+            <div class="flex flex-col gap-2">
+              <button class="escalate-btn flex-1 rounded-lg ${btnClass} text-white text-[11px] font-extrabold py-2 transition shadow-sm"
+                      data-title="${improvment.title}" 
+                      data-team="${improvment.team}" 
+                      data-priority="${improvment.priority}">
+                ${btnText}
+              </button>
+              ${timeBadgeHTML}
+            </div>
+          </article>`;
+      });
 
         if(sheetData.improvment.length === 0){
              improvmentHTML = `<p class="text-center text-emerald-500 font-bold text-sm py-10">✓ لا توجد مقترحات للتطوير حالياً</p>`;
@@ -616,18 +718,50 @@ function setupSearch() {
 }
 
 function setupEscalateButtons() {
-    document.querySelectorAll('.escalate-btn').forEach(btn=>{
+    // 1. Clear existing listeners to prevent duplicates
+    document.querySelectorAll('.escalate-btn').forEach(btn => {
         btn.replaceWith(btn.cloneNode(true));
     });
     
-    document.querySelectorAll('.escalate-btn').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-            if(btn.dataset.done) return;
-            btn.dataset.done = '1';
-            btn.textContent = '✓ تم التصعيد';
-            btn.classList.remove('bg-brand-800','hover:bg-brand-900');
-            btn.classList.add('bg-emerald-600','cursor-default');
-            showToast('تم تصعيد التذكرة بنجاح');
+    // 2. Attach updated escalation logic
+    document.querySelectorAll('.escalate-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const title = btn.dataset.title || 'تنفيذ إجراء';
+            const team = btn.dataset.team || 'غير محدد';
+            const priority = btn.dataset.priority || 'عادي';
+            
+            // --- WhatsApp Integration ---
+            const managerPhone = "967783334002"; // Replace with actual manager WhatsApp number
+            const message = `🚨 *تصعيد إداري عاجل*\n\n*الموضوع:* ${title}\n*الجهة/الفريق:* ${team}\n*الأولوية:* ${priority}\n\nنرجو الاطلاع واتخاذ اللازم.`;
+            
+            window.open(`https://wa.me/${managerPhone}?text=${encodeURIComponent(message)}`, '_blank');
+
+            // --- Date & Time Calculation ---
+            const now = new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', {
+                day: 'numeric', 
+                month: 'short', 
+                hour: '2-digit', 
+                minute: '2-digit'
+            }).format(new Date());
+
+            // --- Dynamic Escalation Timestamp Badge ---
+            const card = btn.closest('article');
+            let timeBadge = card.querySelector('.escalate-time');
+            
+            if (!timeBadge) {
+                timeBadge = document.createElement('div');
+                timeBadge.className = 'escalate-time text-[10px] text-emerald-700 font-bold mt-2 text-center bg-emerald-50 border border-emerald-200 py-1 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all';
+                btn.parentElement.appendChild(timeBadge);
+            }
+            
+            timeBadge.innerHTML = `<span>✓ تم التصعيد:</span> <span class="font-mono dir-ltr">${now}</span>`;
+
+            // --- Re-escalation Button UI Update ---
+            btn.textContent = '🔄 إعادة التصعيد (WhatsApp)';
+            btn.classList.remove('bg-brand-800', 'hover:bg-brand-900');
+            btn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+
+            showToast('تم فتح الواتساب وتحديث وقت التصعيد 🕒');
         });
     });
 }
@@ -642,6 +776,20 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
     const icon = document.getElementById('refreshIcon');
     icon.classList.remove('spin-once'); void icon.offsetWidth; icon.classList.add('spin-once');
     showToast('جارٍ مزامنة البيانات من جوجل شيت...');
+    fetchSheetData();
+});
+
+// تفعيل تغيير البيانات عند تغيير الشهر
+document.getElementById('monthSelector').addEventListener('change', function() {
+    const monthName = this.options[this.selectedIndex].text;
+    showToast(`جارٍ تحميل بيانات شهر ${monthName}...`);
+    
+    // تفريغ الواجهة مؤقتاً لإظهار أن هناك تحميل جديد
+    document.getElementById('employeesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">جارٍ تحميل البيانات...</td></tr>`;
+    document.getElementById('alertsContainer').innerHTML = `<p class="text-center text-slate-400 text-sm py-10">جارٍ تحميل التنبيهات...</p>`;
+    document.getElementById('improvmentContainer').innerHTML = `<p class="text-center text-slate-400 text-sm py-10">جارٍ تحميل المقترحات...</p>`;
+    
+    // جلب بيانات الشهر الجديد
     fetchSheetData();
 });
 </script>
